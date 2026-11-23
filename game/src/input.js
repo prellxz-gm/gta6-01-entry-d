@@ -1,53 +1,30 @@
-// Keyboard and pointer input. Held keys give a steering direction; one-shot presses (start or
-// restart, pause) are queued as bit flags and taken once by the loop, so a press between two
-// frames is never lost and never counted twice.
-
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
-
-const LEFT = new Set(['ArrowLeft', 'KeyA']);
-const RIGHT = new Set(['ArrowRight', 'KeyD']);
-const CONFIRM = new Set(['Space', 'Enter']);
-const PAUSE = new Set(['KeyP', 'Escape']);
-
-export function createInput(target) {
-  let left = false;
-  let right = false;
-  let actions = 0;
-
-  window.addEventListener('keydown', (event) => {
-    if (LEFT.has(event.code)) left = true;
-    else if (RIGHT.has(event.code)) right = true;
-    else if (CONFIRM.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_CONFIRM;
-    } else if (PAUSE.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PAUSE;
-    } else return;
-    event.preventDefault();
-  });
-  window.addEventListener('keyup', (event) => {
-    if (LEFT.has(event.code)) left = false;
-    else if (RIGHT.has(event.code)) right = false;
-  });
-  // A key released while the tab is hidden never sends keyup: let go of everything on blur.
-  window.addEventListener('blur', () => {
-    left = false;
-    right = false;
-  });
-  target.addEventListener('pointerdown', () => {
-    actions |= ACTION_CONFIRM;
-  });
-
-  return {
-    /** -1 for left, 1 for right, 0 for neither or both. */
-    direction() {
-      return (right ? 1 : 0) - (left ? 1 : 0);
-    },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
-    takeActions() {
-      const taken = actions;
-      actions = 0;
-      return taken;
-    },
-  };
+// Palmar Bay — keyboard + pointer input. Fixed key map, no surprises.
+export class Input {
+  constructor() {
+    this.keys = new Set();
+    this.pressed = new Set(); // edge-triggered, consumed each tick
+    this.mouseDown = false;
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.onKey = null; // callback(code) for UI shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      this.keys.add(e.code);
+      this.pressed.add(e.code);
+      if (this.onKey) this.onKey(e.code);
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    window.addEventListener('mousedown', (e) => { this.mouseDown = true; this.mouseX = e.clientX; this.mouseY = e.clientY; });
+    window.addEventListener('mouseup', () => { this.mouseDown = false; });
+    window.addEventListener('blur', () => { this.keys.clear(); this.mouseDown = false; });
+  }
+  down(code) { return this.keys.has(code); }
+  wasPressed(code) { return this.pressed.has(code); }
+  endTick() { this.pressed.clear(); }
+  get forward() { return this.down('KeyW') || this.down('ArrowUp'); }
+  get back() { return this.down('KeyS') || this.down('ArrowDown'); }
+  get left() { return this.down('KeyA') || this.down('ArrowLeft'); }
+  get right() { return this.down('KeyD') || this.down('ArrowRight'); }
+  get run() { return this.down('ShiftLeft') || this.down('ShiftRight'); }
 }

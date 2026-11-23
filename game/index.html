@@ -1,19 +1,125 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>Palmar Bay — Sunset Coast Open-World Crime</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a0f24; font-family: 'Segoe UI', Arial, sans-serif; color: #fff; }
+  #game-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hidden { display: none !important; }
+  /* ---------- Start menu ---------- */
+  #menu-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: linear-gradient(180deg, rgba(43,27,77,0.25) 0%, rgba(255,122,61,0.25) 55%, rgba(26,15,36,0.88) 100%); z-index: 20; }
+  #menu-screen h1 { font-size: 84px; letter-spacing: 6px; font-weight: 900; font-style: italic; color: #ffd76b; text-shadow: 0 4px 0 #d21f3c, 0 8px 32px rgba(0,0,0,0.7); }
+  #menu-screen h2 { font-size: 22px; letter-spacing: 4px; color: #ffb3c8; margin: 8px 0 18px; text-transform: uppercase; }
+  #menu-screen p { max-width: 560px; line-height: 1.6; color: #f5e6ff; font-size: 15px; }
+  #menu-screen .features { margin: 16px 0 22px; font-size: 13px; color: #ffd76b; letter-spacing: 1px; }
+  .big-btn { background: linear-gradient(180deg, #ff5a7a, #d21f3c); border: 2px solid #ffd76b; color: #fff; font-size: 22px; font-weight: 800; letter-spacing: 2px; padding: 14px 44px; border-radius: 10px; cursor: pointer; box-shadow: 0 6px 24px rgba(210,31,60,0.6); }
+  .big-btn:hover { transform: scale(1.04); }
+  .controls { margin-top: 18px; font-size: 12px; color: #cbb8d8; line-height: 1.7; }
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  #hud-top-right { position: absolute; top: 14px; right: 14px; text-align: right; }
+  #hud-wanted { font-size: 30px; color: #ffd76b; text-shadow: 0 2px 8px #000; letter-spacing: 3px; }
+  #hud-cash { font-size: 26px; font-weight: 800; color: #7dff8a; text-shadow: 0 2px 6px #000; }
+  #hud-health-wrap { width: 180px; height: 12px; background: rgba(0,0,0,0.55); border: 1px solid #fff3; border-radius: 6px; margin: 6px 0 2px auto; overflow: hidden; }
+  #hud-health-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a5a, #ff8a5a); }
+  #hud-health-label { font-size: 12px; color: #ffb3b3; }
+  #hud-bottom-left { position: absolute; left: 14px; bottom: 14px; font-size: 15px; text-shadow: 0 2px 6px #000; line-height: 1.7; }
+  #hud-speed { font-size: 30px; font-weight: 900; color: #fff; }
+  #hud-mission { position: absolute; top: 14px; left: 14px; max-width: 430px; background: rgba(20,10,30,0.72); border-left: 4px solid #ffd76b; padding: 10px 14px; border-radius: 6px; font-size: 14px; line-height: 1.5; }
+  #hud-message { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(20,10,30,0.8); padding: 8px 18px; border-radius: 20px; font-size: 14px; color: #ffe9a8; }
+  #hud-hint { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #e8d8ff; text-shadow: 0 1px 4px #000; white-space: nowrap; }
+  #minimap { position: absolute; right: 14px; bottom: 14px; width: 150px; height: 150px; border: 2px solid rgba(255,215,107,0.7); border-radius: 8px; background: rgba(20,12,30,0.85); }
+  #hud-buttons { position: absolute; right: 14px; bottom: 172px; display: flex; flex-direction: column; gap: 6px; pointer-events: auto; }
+  #hud-buttons button { background: rgba(20,10,30,0.8); color: #ffd76b; border: 1px solid #ffd76b88; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  /* ---------- Weapon wheel ---------- */
+  #weapon-wheel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,10,30,0.92); border: 2px solid #ffd76b; border-radius: 14px; padding: 20px 26px; z-index: 25; text-align: center; pointer-events: auto; }
+  #weapon-wheel h3 { color: #ffd76b; letter-spacing: 3px; margin-bottom: 10px; }
+  #weapon-wheel div { font-size: 16px; line-height: 2; }
+  /* ---------- Garage ---------- */
+  #garage-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 520px; max-width: 92vw; background: rgba(20,10,30,0.96); border: 2px solid #ffd76b; border-radius: 14px; padding: 22px; z-index: 30; }
+  #garage-panel h2 { color: #ffd76b; letter-spacing: 2px; margin-bottom: 4px; }
+  #garage-panel h3 { color: #ff9ad5; margin: 14px 0 6px; }
+  .garage-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid #ffffff22; font-size: 14px; }
+  .garage-row button { background: #d21f3c; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-weight: 700; }
+  #close-garage { margin-top: 14px; width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #888; border-radius: 8px; cursor: pointer; }
+  /* ---------- Pause / dead / win ---------- */
+  .overlay-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10,5,18,0.82); z-index: 22; text-align: center; }
+  .overlay-screen h1 { font-size: 56px; letter-spacing: 4px; color: #ffd76b; margin-bottom: 12px; }
+  .overlay-screen p { color: #e8d8ff; max-width: 520px; line-height: 1.6; margin-bottom: 20px; }
 </style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
+<canvas id="game-canvas"></canvas>
+<div id="palmar-debug" style="display:none"></div>
+
+<div id="menu-screen">
+  <h1>PALMAR BAY</h1>
+  <h2>Sunset Coast &bull; Open-World Crime</h2>
+  <p>You are Marisol Vega, fresh out and broke in Palmar Bay. Rico has work, the cops have heat, and the lighthouse is waiting. Steal cars, run 8 story missions, outrun a 5-star manhunt — and become King of Palmar Bay.</p>
+  <div class="features">8 STORY MISSIONS &bull; 5-STAR WANTED + HELICOPTER + ROADBLOCKS &bull; WEAPON WHEEL &bull; CREW &bull; GARAGE UPGRADES &bull; RADIO &bull; STREET RACES &bull; SAVES</div>
+  <button id="start-btn" class="big-btn">▶ START GAME</button>
+  <div class="controls">WASD move / drive &nbsp;•&nbsp; SHIFT run / nitro &nbsp;•&nbsp; E steal car &nbsp;•&nbsp; F exit car &nbsp;•&nbsp; 1/2/3 weapons &nbsp;•&nbsp; Click shoot &nbsp;•&nbsp; Q weapon wheel &nbsp;•&nbsp; R radio &nbsp;•&nbsp; G garage &amp; crew &nbsp;•&nbsp; M restart mission &nbsp;•&nbsp; P pause</div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="hud-mission"></div>
+  <div id="hud-message"></div>
+  <div id="hud-top-right">
+    <div id="hud-wanted">☆☆☆☆☆</div>
+    <div id="hud-cash">$250</div>
+    <div id="hud-health-wrap"><div id="hud-health-bar"></div></div>
+    <div id="hud-health-label">HEALTH <span id="hud-health">100</span></div>
+  </div>
+  <div id="hud-bottom-left">
+    <div id="hud-speed">0 km/h</div>
+    <div>Weapon: <span id="hud-weapon">Fists</span> &nbsp;•&nbsp; Radio: <span id="hud-radio">SUNSET FM</span></div>
+  </div>
+  <canvas id="minimap" width="150" height="150"></canvas>
+  <div id="hud-buttons">
+    <button id="radio-btn">Radio (R)</button>
+    <button id="garage-btn">Garage (G)</button>
+  </div>
+  <div id="hud-hint"></div>
+</div>
+
+<div id="weapon-wheel" class="hidden">
+  <h3>WEAPON WHEEL</h3>
+  <div>1 — Fists<br>2 — Pistol<br>3 — SMG</div>
+  <div style="font-size:12px;color:#cbb8d8;margin-top:8px">Press 1 / 2 / 3 to equip</div>
+</div>
+
+<div id="garage-panel" class="hidden">
+  <h2>Palmar Garage</h2>
+  <p style="font-size:13px;color:#cbb8d8">Spend your cash on the ride. Crew fights beside you.</p>
+  <div id="garage-list"></div>
+  <div id="crew-list"></div>
+  <button id="close-garage">Close (back to the streets)</button>
+</div>
+
+<div id="pause-screen" class="overlay-screen hidden">
+  <h1>PAUSED</h1>
+  <p>Palmar Bay waits for no one — except right now. Your progress autosaves.</p>
+  <button id="resume-btn" class="big-btn">RESUME</button>
+</div>
+
+<div id="dead-screen" class="overlay-screen hidden">
+  <h1>BUSTED / WASTED</h1>
+  <p>The Bay got you this time. Reload the page — your cash, crew and mission progress are saved.</p>
+  <button class="big-btn" onclick="location.reload()">TRY AGAIN</button>
+</div>
+
+<div id="win-screen" class="overlay-screen hidden">
+  <h1>KING OF PALMAR BAY</h1>
+  <p>All 8 missions complete. The lighthouse, the Bay, the whole coast — yours.</p>
+  <button class="big-btn" onclick="location.reload()">FREE ROAM</button>
+</div>
+
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
